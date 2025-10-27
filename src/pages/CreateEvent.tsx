@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Calendar } from "lucide-react";
+import { Calendar, Upload, X } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
 interface Category {
@@ -22,7 +22,10 @@ const CreateEvent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isOrganizer, setIsOrganizer] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [hasRole, setHasRole] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   
   const [formData, setFormData] = useState({
     title: "",
@@ -58,28 +61,28 @@ const CreateEvent = () => {
 
   useEffect(() => {
     if (session) {
-      checkOrganizerStatus();
+      checkUserRole();
       fetchCategories();
     }
   }, [session]);
 
-  const checkOrganizerStatus = async () => {
+  const checkUserRole = async () => {
     if (!session) return;
 
     const { data, error } = await supabase
-      .from("profiles")
-      .select("is_organizer")
-      .eq("id", session.user.id)
-      .single();
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .in("role", ["organizer", "owner"]);
 
     if (error) {
-      toast.error("Failed to verify organizer status");
+      toast.error("Failed to verify permissions");
       navigate("/dashboard");
-    } else if (!data.is_organizer) {
-      toast.error("You need to be an organizer to create events");
+    } else if (!data || data.length === 0) {
+      toast.error("You need organizer permissions to create events");
       navigate("/dashboard");
     } else {
-      setIsOrganizer(true);
+      setHasRole(true);
     }
   };
 
@@ -96,11 +99,52 @@ const CreateEvent = () => {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile || !session) return null;
+
+    setUploading(true);
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${session.user.id}/${Math.random()}.${fileExt}`;
+
+    const { error: uploadError, data } = await supabase.storage
+      .from('event-images')
+      .upload(fileName, imageFile);
+
+    setUploading(false);
+
+    if (uploadError) {
+      toast.error("Failed to upload image");
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('event-images')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!session || !isOrganizer) {
-      toast.error("You must be an organizer to create events");
+    if (!session || !hasRole) {
+      toast.error("You must have organizer permissions to create events");
       return;
     }
 
@@ -116,6 +160,15 @@ const CreateEvent = () => {
 
     setLoading(true);
 
+    // Upload image if selected
+    let uploadedImageUrl = formData.image_url;
+    if (imageFile) {
+      const url = await uploadImage();
+      if (url) {
+        uploadedImageUrl = url;
+      }
+    }
+
     const eventData = {
       title: formData.title,
       description: formData.description,
@@ -126,7 +179,7 @@ const CreateEvent = () => {
       ticket_price: parseFloat(formData.ticket_price) || 0,
       total_tickets: formData.total_tickets ? parseInt(formData.total_tickets) : null,
       available_tickets: formData.total_tickets ? parseInt(formData.total_tickets) : null,
-      image_url: formData.image_url || null,
+      image_url: uploadedImageUrl || null,
       organizer_id: session.user.id,
       status: "upcoming",
     };
@@ -151,7 +204,7 @@ const CreateEvent = () => {
     });
   };
 
-  if (!session || !isOrganizer) {
+  if (!session || !hasRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -262,14 +315,14 @@ const CreateEvent = () => {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ticket_price">Ticket Price (USD)</Label>
+                  <Label htmlFor="ticket_price">Ticket Price (₹)</Label>
                   <Input
                     id="ticket_price"
                     name="ticket_price"
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="0"
-                    placeholder="0.00"
+                    placeholder="0"
                     value={formData.ticket_price}
                     onChange={handleChange}
                   />
@@ -291,23 +344,76 @@ const CreateEvent = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="image_url">Event Image URL</Label>
-                <Input
-                  id="image_url"
-                  name="image_url"
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={formData.image_url}
-                  onChange={handleChange}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide a URL to an event image (optional)
-                </p>
+                <Label htmlFor="image_url">Event Image</Label>
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Input
+                        id="image_url"
+                        name="image_url"
+                        type="url"
+                        placeholder="Or paste image URL..."
+                        value={formData.image_url}
+                        onChange={handleChange}
+                        disabled={!!imageFile}
+                      />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="image-upload"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                        disabled={!!formData.image_url}
+                      />
+                      <Label htmlFor="image-upload">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!!formData.image_url}
+                          asChild
+                        >
+                          <span className="cursor-pointer">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload
+                          </span>
+                        </Button>
+                      </Label>
+                    </div>
+                  </div>
+                  
+                  {imagePreview && (
+                    <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview("");
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Upload an image (max 5MB) or provide an image URL
+                  </p>
+                </div>
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? "Creating Event..." : "Create Event"}
+                <Button type="submit" disabled={loading || uploading} className="flex-1">
+                  {uploading ? "Uploading..." : loading ? "Creating Event..." : "Create Event"}
                 </Button>
                 <Button
                   type="button"

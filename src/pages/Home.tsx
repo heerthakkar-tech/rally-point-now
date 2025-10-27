@@ -87,16 +87,16 @@ const Home = () => {
             Connect with experiences that matter. Find and join events that inspire you.
           </p>
           <form onSubmit={handleSearch} className="flex gap-2 max-w-2xl">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search events, categories, or locations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 text-lg bg-white"
-              />
-            </div>
+          <div className="relative flex-1 max-w-xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search events, categories, or locations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-12 text-lg bg-white"
+            />
+          </div>
             <Button type="submit" variant="hero" size="lg" className="h-12 px-8">
               Search
             </Button>

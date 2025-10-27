@@ -74,7 +74,7 @@ const Auth = () => {
     setLoading(true);
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -88,7 +88,21 @@ const Auth = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Account created successfully! You can now sign in.");
+      toast.success("Account created successfully! Welcome to GoEvent!");
+      
+      // Send welcome email
+      if (data.user) {
+        try {
+          await supabase.functions.invoke('send-welcome-email', {
+            body: {
+              email,
+              name: fullName,
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+        }
+      }
     }
     setLoading(false);
   };

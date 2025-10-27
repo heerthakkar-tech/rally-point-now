@@ -59,6 +59,14 @@ const Navbar = () => {
                 Events
               </Button>
             </Link>
+            <Link to="/about">
+              <Button
+                variant={isActive("/about") ? "default" : "ghost"}
+                size="sm"
+              >
+                About
+              </Button>
+            </Link>
           </div>
         </div>
 

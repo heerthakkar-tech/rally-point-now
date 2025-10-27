@@ -14,6 +14,7 @@ import { Session } from "@supabase/supabase-js";
 interface Profile {
   full_name: string;
   is_organizer: boolean;
+  user_roles?: Array<{ role: string }>;
 }
 
 interface Event {
@@ -83,7 +84,15 @@ const Dashboard = () => {
     if (error) {
       toast.error("Failed to load profile");
     } else {
-      setProfile(data);
+      // Check if user has organizer or owner role
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .in("role", ["organizer", "owner"]);
+      
+      const hasOrganizerRole = (rolesData && rolesData.length > 0) || data?.is_organizer;
+      setProfile({ ...data, is_organizer: hasOrganizerRole });
     }
   };
 
@@ -157,17 +166,26 @@ const Dashboard = () => {
   const handleBecomeOrganizer = async () => {
     if (!session) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_organizer: true })
-      .eq("id", session.user.id);
+    // Add organizer role
+    const { error: roleError } = await supabase
+      .from("user_roles")
+      .insert({ 
+        user_id: session.user.id, 
+        role: "organizer" 
+      });
 
-    if (error) {
-      toast.error("Failed to become an organizer");
+    if (roleError) {
+      // If role already exists or other error
+      if (roleError.code === "23505") {
+        toast.info("You're already an organizer!");
+      } else {
+        toast.error("Failed to become an organizer");
+      }
     } else {
       toast.success("You're now an organizer!");
-      fetchProfile();
     }
+    
+    fetchProfile();
   };
 
   if (loading || !session) {
@@ -346,8 +364,7 @@ const Dashboard = () => {
                             </div>
                             {event.ticket_price > 0 && (
                               <div className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4" />
-                                ${event.ticket_price}
+                                <span>₹{event.ticket_price}</span>
                               </div>
                             )}
                           </div>

@@ -67,8 +67,7 @@ const EventCard = ({
           </div>
           {ticket_price > 0 && (
             <div className="flex items-center gap-2 text-accent font-semibold">
-              <DollarSign className="h-4 w-4" />
-              <span>${ticket_price}</span>
+              <span>₹{ticket_price}</span>
             </div>
           )}
           {ticket_price === 0 && (

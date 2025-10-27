@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, MapPin, DollarSign, Users, Clock } from "lucide-react";
+import { Calendar, MapPin, Users, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -226,15 +226,13 @@ const EventDetail = () => {
                   </div>
                   {event.ticket_price > 0 ? (
                     <div className="flex items-center gap-3 text-sm">
-                      <DollarSign className="h-5 w-5 text-accent" />
                       <div>
                         <p className="font-semibold">Price per Ticket</p>
-                        <p className="text-accent font-bold text-lg">${event.ticket_price}</p>
+                        <p className="text-accent font-bold text-lg">₹{event.ticket_price}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 text-sm">
-                      <DollarSign className="h-5 w-5 text-accent" />
                       <div>
                         <p className="font-semibold text-accent">Free Event</p>
                       </div>
@@ -268,7 +266,7 @@ const EventDetail = () => {
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-sm text-muted-foreground">Total</p>
                         <p className="text-2xl font-bold text-accent">
-                          ${(event.ticket_price * ticketCount).toFixed(2)}
+                          ₹{(event.ticket_price * ticketCount).toFixed(0)}
                         </p>
                       </div>
                     )}
