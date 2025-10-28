@@ -73,7 +73,7 @@ const CreateEvent = () => {
       .from("user_roles")
       .select("role")
       .eq("user_id", session.user.id)
-      .in("role", ["organizer", "owner"]);
+      .in("role", ["event_manager", "admin"]);
 
     if (error) {
       toast.error("Failed to verify permissions");

@@ -46,7 +46,7 @@ const Auth = () => {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -54,6 +54,22 @@ const Auth = () => {
     if (error) {
       toast.error(error.message);
     } else {
+      // Auto-assign admin role for specific emails on login if not already assigned
+      if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
+        const { data: existingRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "admin")
+          .single();
+        
+        if (!existingRole) {
+          await supabase
+            .from("user_roles")
+            .insert({ user_id: data.user.id, role: "admin" });
+        }
+      }
+      
       toast.success("Signed in successfully!");
     }
     setLoading(false);
@@ -88,6 +104,17 @@ const Auth = () => {
     if (error) {
       toast.error(error.message);
     } else {
+      // Auto-assign admin role for specific emails
+      if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: data.user.id, role: "admin" });
+        
+        if (roleError && roleError.code !== "23505") {
+          console.error("Failed to assign admin role:", roleError);
+        }
+      }
+      
       toast.success("Account created successfully! Welcome to GoEvent!");
       
       // Send welcome email

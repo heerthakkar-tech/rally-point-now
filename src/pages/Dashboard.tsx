@@ -89,7 +89,7 @@ const Dashboard = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
-        .in("role", ["organizer", "owner"]);
+        .in("role", ["event_manager", "admin"]);
       
       const hasOrganizerRole = (rolesData && rolesData.length > 0) || data?.is_organizer;
       setProfile({ ...data, is_organizer: hasOrganizerRole });
@@ -171,7 +171,7 @@ const Dashboard = () => {
       .from("user_roles")
       .insert({ 
         user_id: session.user.id, 
-        role: "organizer" 
+        role: "event_manager" 
       });
 
     if (roleError) {

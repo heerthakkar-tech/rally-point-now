@@ -8,20 +8,40 @@ import { Session } from "@supabase/supabase-js";
 const Navbar = () => {
   const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) {
+        checkAdminStatus(session.user.id);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .single();
+
+    setIsAdmin(!!data);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -73,6 +93,18 @@ const Navbar = () => {
         <div className="flex items-center gap-2">
           {session ? (
             <>
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button
+                    variant={isActive("/admin") ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">Admin Dashboard</span>
+                  </Button>
+                </Link>
+              )}
               <Link to="/dashboard">
                 <Button
                   variant={isActive("/dashboard") ? "default" : "ghost"}
