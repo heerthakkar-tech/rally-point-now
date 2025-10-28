@@ -128,15 +128,20 @@ const Admin = () => {
     if (profiles) {
       const usersWithRoles = await Promise.all(
         profiles.map(async (profile) => {
-          const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
           const { data: roles } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", profile.id);
 
+          // Get email from current session if this is the current user
+          let email = "User";
+          if (session && profile.id === session.user.id) {
+            email = session.user.email || "N/A";
+          }
+
           return {
             ...profile,
-            email: authUser?.user?.email || "N/A",
+            email,
             roles: roles || [],
           };
         })
@@ -184,22 +189,24 @@ const Admin = () => {
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
+    // Delete all existing roles for this user and set the new one
     const { error: deleteError } = await supabase
       .from("user_roles")
       .delete()
       .eq("user_id", userId);
 
     if (deleteError) {
-      toast.error("Failed to update role");
-      return;
+      console.error("Error deleting old roles:", deleteError);
     }
 
+    // Insert the new role
     const { error: insertError } = await supabase
       .from("user_roles")
       .insert([{ user_id: userId, role: newRole as any }]);
 
     if (insertError) {
       toast.error("Failed to assign new role");
+      console.error("Role assignment error:", insertError);
     } else {
       toast.success("Role updated successfully");
       fetchUsers();
