@@ -94,7 +94,7 @@ const Home = () => {
               placeholder="Search events, categories, or locations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12 text-lg bg-white text-foreground placeholder:text-muted-foreground"
+              className="pl-10 h-12 text-lg"
             />
           </div>
             <Button type="submit" variant="hero" size="lg" className="h-12 px-8">
