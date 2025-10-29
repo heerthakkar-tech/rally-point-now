@@ -58,24 +58,37 @@ const Auth = () => {
       
       // Auto-assign admin role for specific emails on login if not already assigned
       if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
+        // Use a slight delay to ensure profile is created first
         setTimeout(async () => {
-          const { data: existingRole } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", data.user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-          
-          if (!existingRole) {
-            const { error: roleError } = await supabase
+          try {
+            // Check for existing admin role
+            const { data: existingRole } = await supabase
               .from("user_roles")
-              .insert({ user_id: data.user.id, role: "admin" });
+              .select("role")
+              .eq("user_id", data.user.id)
+              .eq("role", "admin")
+              .maybeSingle();
             
-            if (roleError && roleError.code !== "23505") {
-              console.error("Failed to assign admin role:", roleError);
+            if (!existingRole) {
+              // Insert admin role
+              const { error: roleError } = await supabase
+                .from("user_roles")
+                .insert({ user_id: data.user.id, role: "admin" });
+              
+              if (roleError && roleError.code !== "23505") {
+                console.error("Failed to assign admin role:", roleError);
+              }
             }
+
+            // Also update profile to mark as organizer
+            await supabase
+              .from("profiles")
+              .update({ is_organizer: true })
+              .eq("id", data.user.id);
+          } catch (err) {
+            console.error("Error setting up admin user:", err);
           }
-        }, 100);
+        }, 500);
       }
     }
     setLoading(false);
@@ -115,14 +128,25 @@ const Auth = () => {
       // Auto-assign admin role for specific emails (in addition to default participant role)
       if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
         setTimeout(async () => {
-          const { error: roleError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: data.user.id, role: "admin" });
-          
-          if (roleError && roleError.code !== "23505") {
-            console.error("Failed to assign admin role:", roleError);
+          try {
+            // Insert admin role
+            const { error: roleError } = await supabase
+              .from("user_roles")
+              .insert({ user_id: data.user.id, role: "admin" });
+            
+            if (roleError && roleError.code !== "23505") {
+              console.error("Failed to assign admin role:", roleError);
+            }
+
+            // Update profile to mark as organizer
+            await supabase
+              .from("profiles")
+              .update({ is_organizer: true })
+              .eq("id", data.user.id);
+          } catch (err) {
+            console.error("Error setting up admin user:", err);
           }
-        }, 100);
+        }, 500);
       }
       
       // Send welcome email

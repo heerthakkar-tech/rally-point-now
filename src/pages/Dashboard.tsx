@@ -84,14 +84,18 @@ const Dashboard = () => {
     if (error) {
       toast.error("Failed to load profile");
     } else {
-      // Check if user has organizer or owner role
+      // Check if user is admin by email
+      const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
+      const isAdminByEmail = session.user.email && adminEmails.includes(session.user.email);
+
+      // Check if user has organizer or admin role
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
         .in("role", ["event_manager", "admin"]);
       
-      const hasOrganizerRole = (rolesData && rolesData.length > 0) || data?.is_organizer;
+      const hasOrganizerRole = isAdminByEmail || (rolesData && rolesData.length > 0) || data?.is_organizer;
       setProfile({ ...data, is_organizer: hasOrganizerRole });
     }
   };
@@ -166,26 +170,56 @@ const Dashboard = () => {
   const handleBecomeOrganizer = async () => {
     if (!session) return;
 
-    // Add organizer role
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .insert({ 
-        user_id: session.user.id, 
-        role: "event_manager" 
-      });
+    try {
+      // Check if user already has event_manager or admin role
+      const { data: existingRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .in("role", ["event_manager", "admin"]);
 
-    if (roleError) {
-      // If role already exists or other error
-      if (roleError.code === "23505") {
+      if (existingRoles && existingRoles.length > 0) {
+        // Update profile to mark as organizer
+        await supabase
+          .from("profiles")
+          .update({ is_organizer: true })
+          .eq("id", session.user.id);
+        
         toast.info("You're already an organizer!");
-      } else {
-        toast.error("Failed to become an organizer");
+        fetchProfile();
+        return;
       }
-    } else {
+
+      // Add event_manager role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({ 
+          user_id: session.user.id, 
+          role: "event_manager" 
+        });
+
+      if (roleError) {
+        if (roleError.code === "23505") {
+          toast.info("You're already an organizer!");
+        } else {
+          console.error("Role error:", roleError);
+          toast.error("Failed to become an organizer. Please contact support.");
+        }
+        return;
+      }
+
+      // Update profile to mark as organizer
+      await supabase
+        .from("profiles")
+        .update({ is_organizer: true })
+        .eq("id", session.user.id);
+
       toast.success("You're now an organizer!");
+      fetchProfile();
+    } catch (err) {
+      console.error("Error becoming organizer:", err);
+      toast.error("An error occurred. Please try again.");
     }
-    
-    fetchProfile();
   };
 
   if (loading || !session) {

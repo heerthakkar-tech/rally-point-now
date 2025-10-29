@@ -69,6 +69,16 @@ const CreateEvent = () => {
   const checkUserRole = async () => {
     if (!session) return;
 
+    // Check if user is admin by email (fallback)
+    const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
+    const isAdminByEmail = session.user.email && adminEmails.includes(session.user.email);
+
+    if (isAdminByEmail) {
+      setHasRole(true);
+      return;
+    }
+
+    // Check database roles
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -76,11 +86,23 @@ const CreateEvent = () => {
       .in("role", ["event_manager", "admin"]);
 
     if (error) {
+      console.error("Permission check error:", error);
       toast.error("Failed to verify permissions");
       navigate("/dashboard");
     } else if (!data || data.length === 0) {
-      toast.error("You need organizer permissions to create events");
-      navigate("/dashboard");
+      // Check is_organizer flag in profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("is_organizer")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileData?.is_organizer) {
+        setHasRole(true);
+      } else {
+        toast.error("You need organizer permissions to create events");
+        navigate("/dashboard");
+      }
     } else {
       setHasRole(true);
     }
