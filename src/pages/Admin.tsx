@@ -93,6 +93,32 @@ const Admin = () => {
   const checkAdminAccess = async () => {
     if (!session) return;
 
+    // Check if user is one of the designated admin emails
+    const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
+    const isAdminByEmail = session.user.email && adminEmails.includes(session.user.email);
+
+    if (isAdminByEmail) {
+      // If admin by email, ensure they have admin role in database
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!existingRole) {
+        // Auto-assign admin role if not present
+        await supabase
+          .from("user_roles")
+          .insert({ user_id: session.user.id, role: "admin" });
+      }
+
+      setIsAdmin(true);
+      fetchData();
+      return;
+    }
+
+    // For other users, check database roles
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")

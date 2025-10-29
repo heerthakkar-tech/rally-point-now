@@ -33,12 +33,22 @@ const Navbar = () => {
   }, []);
 
   const checkAdminStatus = async (userId: string) => {
+    // Check if user is one of the designated admin emails
+    const { data: { user } } = await supabase.auth.getUser();
+    const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
+    
+    if (user?.email && adminEmails.includes(user.email)) {
+      setIsAdmin(true);
+      return;
+    }
+
+    // Otherwise check database roles
     const { data } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .eq("role", "admin")
-      .single();
+      .maybeSingle();
 
     setIsAdmin(!!data);
   };
@@ -119,6 +129,16 @@ const Navbar = () => {
                 <Button variant="secondary" size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Create Event</span>
+                </Button>
+              </Link>
+              <Link to="/profile">
+                <Button
+                  variant={isActive("/profile") ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">Profile</span>
                 </Button>
               </Link>
               <Button
