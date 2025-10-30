@@ -87,23 +87,21 @@ const CreateEvent = () => {
 
     if (error) {
       console.error("Permission check error:", error);
-      toast.error("Failed to verify permissions");
-      navigate("/dashboard");
-    } else if (!data || data.length === 0) {
-      // Check is_organizer flag in profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("is_organizer")
-        .eq("id", session.user.id)
-        .single();
+    }
 
-      if (profileData?.is_organizer) {
-        setHasRole(true);
-      } else {
-        toast.error("You need organizer permissions to create events");
-        navigate("/dashboard");
-      }
+    // Check is_organizer flag in profile
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("is_organizer")
+      .eq("id", session.user.id)
+      .single();
+
+    // Allow access if user is admin, has event_manager role, or is marked as organizer
+    // OR if they have none of these (they'll be promoted after creating first event)
+    if (isAdminByEmail || (data && data.length > 0) || profileData?.is_organizer) {
+      setHasRole(true);
     } else {
+      // Allow new users to create their first event
       setHasRole(true);
     }
   };
@@ -165,8 +163,8 @@ const CreateEvent = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!session || !hasRole) {
-      toast.error("You must have organizer permissions to create events");
+    if (!session) {
+      toast.error("You must be logged in to create events");
       return;
     }
 
@@ -212,6 +210,33 @@ const CreateEvent = () => {
       toast.error("Failed to create event");
       console.error(error);
     } else {
+      // Auto-promote user to organizer after first event creation
+      const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
+      const isAdminEmail = session.user.email && adminEmails.includes(session.user.email);
+      
+      if (!isAdminEmail) {
+        // Check if user has event_manager role
+        const { data: existingRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .eq("role", "event_manager")
+          .single();
+
+        if (!existingRoles) {
+          // Add event_manager role
+          await supabase
+            .from("user_roles")
+            .insert({ user_id: session.user.id, role: "event_manager" });
+        }
+
+        // Update profile to mark as organizer
+        await supabase
+          .from("profiles")
+          .update({ is_organizer: true })
+          .eq("id", session.user.id);
+      }
+
       toast.success("Event created successfully!");
       navigate(`/events/${data.id}`);
     }

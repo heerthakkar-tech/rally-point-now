@@ -253,10 +253,6 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </Button>
             </div>
           </CardContent>
         </Card>
