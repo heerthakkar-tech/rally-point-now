@@ -88,13 +88,13 @@ const Home = () => {
           </p>
           <form onSubmit={handleSearch} className="flex gap-2 max-w-2xl">
           <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70" />
             <Input
               type="text"
               placeholder="Search events, categories, or locations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12 text-lg"
+              className="pl-10 h-12 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/60 focus-visible:bg-white/15 focus-visible:border-white/40"
             />
           </div>
             <Button type="submit" variant="hero" size="lg" className="h-12 px-8">
