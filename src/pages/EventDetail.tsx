@@ -42,6 +42,8 @@ const EventDetail = () => {
   const [registering, setRegistering] = useState(false);
   const [ticketCount, setTicketCount] = useState(1);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,6 +64,7 @@ const EventDetail = () => {
       fetchEvent();
       if (session) {
         checkRegistration();
+        checkEditPermission();
       }
     }
   }, [id, session]);
@@ -93,6 +96,35 @@ const EventDetail = () => {
       .maybeSingle();
 
     setIsRegistered(!!data);
+  };
+
+  const checkEditPermission = async () => {
+    if (!session || !event) return;
+
+    // Check if user is admin
+    const { data: adminRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (adminRole) {
+      setIsAdmin(true);
+      setCanEdit(true);
+      return;
+    }
+
+    // Check if user is the organizer of this event
+    const { data: eventData } = await supabase
+      .from("events")
+      .select("organizer_id")
+      .eq("id", id)
+      .single();
+
+    if (eventData && eventData.organizer_id === session.user.id) {
+      setCanEdit(true);
+    }
   };
 
   const handleRegister = async () => {

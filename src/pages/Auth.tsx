@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Calendar } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import validator from "validator";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -45,8 +46,13 @@ const Auth = () => {
       return;
     }
 
+    if (!validator.isEmail(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -55,41 +61,6 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       toast.success("Signed in successfully!");
-      
-      // Auto-assign admin role for specific emails on login if not already assigned
-      if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
-        // Use a slight delay to ensure profile is created first
-        setTimeout(async () => {
-          try {
-            // Check for existing admin role
-            const { data: existingRole } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", data.user.id)
-              .eq("role", "admin")
-              .maybeSingle();
-            
-            if (!existingRole) {
-              // Insert admin role
-              const { error: roleError } = await supabase
-                .from("user_roles")
-                .insert({ user_id: data.user.id, role: "admin" });
-              
-              if (roleError && roleError.code !== "23505") {
-                console.error("Failed to assign admin role:", roleError);
-              }
-            }
-
-            // Also update profile to mark as organizer
-            await supabase
-              .from("profiles")
-              .update({ is_organizer: true })
-              .eq("id", data.user.id);
-          } catch (err) {
-            console.error("Error setting up admin user:", err);
-          }
-        }, 500);
-      }
     }
     setLoading(false);
   };
@@ -98,6 +69,11 @@ const Auth = () => {
     e.preventDefault();
     if (!email || !password || !fullName) {
       toast.error("Please fill in all fields");
+      return;
+    }
+
+    if (!validator.isEmail(email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -123,46 +99,18 @@ const Auth = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Account created successfully! Please check your email for a welcome message!");
-      
-      // Auto-assign admin role for specific emails (in addition to default participant role)
-      if (data.user && (email === "heerthakkar223@gmail.com" || email === "omkarsinh.04@gmail.com")) {
-        setTimeout(async () => {
-          try {
-            // Insert admin role
-            const { error: roleError } = await supabase
-              .from("user_roles")
-              .insert({ user_id: data.user.id, role: "admin" });
-            
-            if (roleError && roleError.code !== "23505") {
-              console.error("Failed to assign admin role:", roleError);
-            }
-
-            // Update profile to mark as organizer
-            await supabase
-              .from("profiles")
-              .update({ is_organizer: true })
-              .eq("id", data.user.id);
-          } catch (err) {
-            console.error("Error setting up admin user:", err);
-          }
-        }, 500);
-      }
+      toast.success("Account created! Please check your email to confirm your account before signing in.");
       
       // Send welcome email
       if (data.user) {
         setTimeout(async () => {
           try {
-            const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+            await supabase.functions.invoke('send-welcome-email', {
               body: {
                 email,
                 name: fullName,
               },
             });
-            
-            if (emailError) {
-              console.error('Failed to send welcome email:', emailError);
-            }
           } catch (err) {
             console.error('Failed to send welcome email:', err);
           }

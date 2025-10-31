@@ -84,10 +84,6 @@ const Dashboard = () => {
     if (error) {
       toast.error("Failed to load profile");
     } else {
-      // Check if user is admin by email
-      const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
-      const isAdminByEmail = session.user.email && adminEmails.includes(session.user.email);
-
       // Check if user has organizer or admin role
       const { data: rolesData } = await supabase
         .from("user_roles")
@@ -95,7 +91,7 @@ const Dashboard = () => {
         .eq("user_id", session.user.id)
         .in("role", ["event_manager", "admin"]);
       
-      const hasOrganizerRole = isAdminByEmail || (rolesData && rolesData.length > 0) || data?.is_organizer;
+      const hasOrganizerRole = (rolesData && rolesData.length > 0) || data?.is_organizer;
       setProfile({ ...data, is_organizer: hasOrganizerRole });
     }
   };

@@ -33,16 +33,7 @@ const Navbar = () => {
   }, []);
 
   const checkAdminStatus = async (userId: string) => {
-    // Check if user is one of the designated admin emails
-    const { data: { user } } = await supabase.auth.getUser();
-    const adminEmails = ["heerthakkar223@gmail.com", "omkarsinh.04@gmail.com"];
-    
-    if (user?.email && adminEmails.includes(user.email)) {
-      setIsAdmin(true);
-      return;
-    }
-
-    // Otherwise check database roles
+    // Check database roles - admin role is auto-assigned via database trigger
     const { data } = await supabase
       .from("user_roles")
       .select("role")
